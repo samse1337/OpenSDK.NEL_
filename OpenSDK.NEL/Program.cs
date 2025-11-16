@@ -537,7 +537,55 @@ static async Task HandleWebSocket(System.Net.WebSockets.WebSocket ws)
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "4399登录失败");
+                    var needCaptcha = ex.Message != null && ex.Message.Contains("Captcha", StringComparison.OrdinalIgnoreCase);
+                    if (needCaptcha)
+                    {
+                        var sid = Guid.NewGuid().ToString("N");
+                        AppState.PendingCaptchas[sid] = (account!, password!);
+                        var cap = JsonSerializer.Serialize(new { type = "captcha_required", account, password, sessionId = sid });
+                        await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(cap)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                    else
+                    {
+                        Log.Error(ex, "4399登录失败");
+                        var err = JsonSerializer.Serialize(new { type = "login_error", message = "登录失败" });
+                        await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(err)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                    }
+                }
+                continue;
+            }
+            if (type == "login_4399_with_captcha")
+            {
+                var sessionId = root.TryGetProperty("sessionId", out var sidp) ? sidp.GetString() : null;
+                var captcha = root.TryGetProperty("captcha", out var capp) ? capp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(captcha))
+                {
+                    var err = JsonSerializer.Serialize(new { type = "login_error", message = "验证码会话或值为空" });
+                    await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(err)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                    continue;
+                }
+                if (!AppState.PendingCaptchas.TryGetValue(sessionId, out var creds))
+                {
+                    var err = JsonSerializer.Serialize(new { type = "login_error", message = "验证码会话无效" });
+                    await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(err)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                    continue;
+                }
+                try
+                {
+                    var json = await AppState.Services!.C4399.LoginWithPasswordAsync(creds.account, creds.password, sessionId, captcha);
+                    var cont = await AppState.Services!.X19.ContinueAsync(json);
+                    var authOtp = cont.Item1;
+                    var channel = cont.Item2;
+                    AppState.Accounts[authOtp.EntityId] = channel;
+                    AppState.Auths[authOtp.EntityId] = authOtp;
+                    AppState.SelectedAccountId = authOtp.EntityId;
+                    AppState.PendingCaptchas.TryRemove(sessionId, out _);
+                    var ok = JsonSerializer.Serialize(new { type = "login_success", entityId = authOtp.EntityId, channel });
+                    await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(ok)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "携带验证码登录失败");
                     var err = JsonSerializer.Serialize(new { type = "login_error", message = "登录失败" });
                     await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(err)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
                 }
@@ -908,6 +956,7 @@ internal static class AppState
     public static ConcurrentDictionary<string, X19AuthenticationOtp> Auths { get; } = new();
     public static string? SelectedAccountId;
     public static ConcurrentDictionary<string, ChannelInfo> Channels { get; } = new();
+    public static ConcurrentDictionary<string, (string account, string password)> PendingCaptchas { get; } = new();
 }
 
 internal class ChannelInfo

@@ -421,8 +421,37 @@
             };
             wsOnMessageHook = data => {
                 if (data.type === 'login_success') addAccount(data.entityId, data.channel);
+                if (data.type === 'captcha_required') openCaptchaModal(data.account, data.password, data.sessionId);
             };
             return { open };
+        }
+
+        function openCaptchaModal(account, password, sessionId) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            const dialog = document.createElement('div');
+            dialog.className = 'modal';
+            dialog.innerHTML = `
+                <div class="modal-header">输入验证码</div>
+                <div class="modal-body">
+                    <input id="captchaInput" type="text" placeholder="输入图形验证码" />
+                </div>
+                <div class="modal-actions">
+                    <button id="capCancel" class="btn">取消</button>
+                    <button id="capOk" class="btn btn-primary">提交</button>
+                </div>
+            `;
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+            overlay.style.display = 'flex';
+            const close = () => { overlay.remove(); };
+            dialog.querySelector('#capCancel').onclick = close;
+            dialog.querySelector('#capOk').onclick = () => {
+                const captcha = dialog.querySelector('#captchaInput').value.trim();
+                if (!captcha) return;
+                sendMessage({ type: 'login_4399_with_captcha', sessionId, captcha });
+                close();
+            };
         }
 
         
