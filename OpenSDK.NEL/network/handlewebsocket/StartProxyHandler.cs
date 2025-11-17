@@ -57,13 +57,24 @@ internal class StartProxyHandler : IWsHandler
                 Ip = address.Data!.Ip,
                 Port = address.Data!.Port,
                 RoleName = selected.Name,
-                Cts = cts
+                Cts = cts,
+                PlayerId = auth.EntityId,
+                ForwardHost = address.Data!.Ip,
+                ForwardPort = address.Data!.Port,
+                LocalPort = address.Data!.Port
             };
             _ = Task.Run(async () =>
             {
                 await StartProxyWithRoleByIdAsync(auth, AppState.Services!, serverId!, serverName, selected, cts.Token);
             });
-            var items3 = AppState.Channels.Values.Select(ch => new { serverId = ch.ServerId, serverName = ch.ServerName, address = ch.Ip + ":" + ch.Port }).ToArray();
+            var items3 = AppState.Channels.Values.Select(ch => new {
+                serverId = ch.ServerId,
+                serverName = ch.ServerName,
+                playerId = ch.PlayerId,
+                tcp = "127.0.0.1:" + ch.LocalPort,
+                forward = ch.ForwardHost + ":" + ch.ForwardPort,
+                address = ch.Ip + ":" + ch.Port
+            }).ToArray();
             var ok = JsonSerializer.Serialize(new { type = "channels", items = items3 });
             await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(ok)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
         }
@@ -112,12 +123,67 @@ internal class StartProxyHandler : IWsHandler
 
             var mods = JsonSerializer.Serialize(serverModInfo);
 
-            CreateProxyInterceptor(authOtp, services.Yggdrasil, new EntityNetGameItem { EntityId = serverId, Name = serverName }, selectedCharacter, version, address.Data!, mods);
+            var connection = Codexus.Interceptors.Interceptor.CreateInterceptor(
+                new EntitySocks5 { Enabled = false },
+                mods,
+                serverId,
+                serverName,
+                version.Name,
+                address.Data!.Ip,
+                address.Data!.Port,
+                selectedCharacter.Name,
+                authOtp.EntityId,
+                authOtp.Token,
+                (System.Action<string>)((sid) =>
+                {
+                    Log.Information("Server ID: {Certification}", sid);
+                    var pair = OpenSDK.NEL.Md5Mapping.GetMd5FromGameVersion(version.Name);
+                    var signal = new SemaphoreSlim(0);
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var success = await services.Yggdrasil.JoinServerAsync(new Codexus.OpenSDK.Entities.Yggdrasil.GameProfile
+                            {
+                                GameId = serverId,
+                                GameVersion = version.Name,
+                                BootstrapMd5 = pair.BootstrapMd5,
+                                DatFileMd5 = pair.DatFileMd5,
+                                Mods = JsonSerializer.Deserialize<Codexus.OpenSDK.Entities.Yggdrasil.ModList>(mods)!,
+                                User = new Codexus.OpenSDK.Entities.Yggdrasil.UserProfile { UserId = int.Parse(authOtp.EntityId), UserToken = authOtp.Token }
+                            }, sid);
+                            if (success.IsSuccess) Log.Information("消息认证成功"); else Log.Error("消息认证失败: {Error}", success.Error);
+                        }
+                        catch (System.Exception e)
+                        {
+                            Log.Error(e, "认证过程中发生异常");
+                        }
+                        finally
+                        {
+                            signal.Release();
+                        }
+                    });
+                    signal.Wait();
+                })
+            );
+            if (AppState.Channels.TryGetValue(serverId, out var ch)) ch.Connection = connection;
 
             await X19.InterconnectionApi.GameStartAsync(authOtp.EntityId, authOtp.Token, serverId);
             Log.Information("代理服务器已创建并启动。");
 
-            await Task.Delay(Timeout.Infinite, ct);
+            try
+            {
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+            catch (TaskCanceledException)
+            {
+                Log.Information("通道已关闭: {ServerId}", serverId);
+            }
+            return true;
+        }
+        catch (TaskCanceledException)
+        {
+            Log.Information("通道已关闭: {ServerId}", serverId);
             return true;
         }
         catch (System.Exception ex)

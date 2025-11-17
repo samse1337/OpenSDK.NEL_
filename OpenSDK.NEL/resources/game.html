@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">OpenSDK.NEL</div>
+      <ul class="menu">
+        <li data-view="dash">概括</li>
+        <li data-view="serverlist">服务器列表</li>
+        <li data-view="game" class="active">游戏</li>
+      </ul>
+    </aside>
+    <main class="main">
+      <div class="panel"><h3>游戏</h3><div class="channels-grid" id="channelsGrid"></div></div>
+    </main>
+  </div>
+  <script>
+    let ws=null;function connect(){const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/ws`);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='channels')renderChannels(d.items||[]);if(d.type==='navigate')location.href=d.url}catch{}}}
+    function sendMessage(m){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m))}
+    function renderChannels(items){const grid=document.getElementById('channelsGrid');if(!items||items.length===0){grid.innerHTML='<div style="opacity:.7">暂无通道</div>';return}grid.innerHTML=items.map(it=>{const tcp=(it.tcp||it.address)||'';const forward=it.forward||'';const pid=it.playerId||'';return `<div class=\"channel-card\"><div class=\"channel-name\">${it.serverName}</div><div class=\"channel-addr\">玩家ID: ${pid}</div><div class=\"channel-addr\">TCP Address: ${tcp}, Forward to: ${forward}</div><div class=\"channel-actions\"><button class=\"btn\" data-id=\"${it.serverId}\" data-addr=\"${tcp}\" data-act=\"copy\">复制连接地址</button><button class=\"btn btn-danger\" data-id=\"${it.serverId}\" data-act=\"close\">关闭通道</button></div></div>`}).join('');grid.querySelectorAll('button').forEach(b=>{const act=b.getAttribute('data-act');if(act==='close')b.onclick=()=>sendMessage({type:'close_channel',serverId:b.getAttribute('data-id')});if(act==='copy')b.onclick=()=>{const addr=b.getAttribute('data-addr');if(navigator.clipboard)navigator.clipboard.writeText(addr);else{const ta=document.createElement('textarea');ta.value=addr;document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}finally{ta.remove()}}}})}
+    function bindNav(){document.querySelectorAll('.menu li').forEach(li=>li.addEventListener('click',()=>{const v=li.dataset.view;if(v==='dash')sendMessage({type:'open_dash'});if(v==='serverlist')sendMessage({type:'open_serverlist'});if(v==='game')sendMessage({type:'open_game'})}))}
+    window.onload=function(){connect();bindNav();sendMessage({type:'list_channels'})}
+  </script>
+</body>
+</html>

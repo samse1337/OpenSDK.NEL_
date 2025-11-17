@@ -246,7 +246,10 @@ static async Task ServeContextAsync(HttpListenerContext context)
 
     var root = Path.Combine(AppContext.BaseDirectory, "resources");
     var path = req.Url.AbsolutePath;
-    if (path == "/") path = "/index.html";
+    if (path == "/") path = "/dash.html";
+    if (path == "/dash") path = "/dash.html";
+    if (path == "/serverlist") path = "/serverlist.html";
+    if (path == "/game") path = "/game.html";
     var filePath = Path.GetFullPath(Path.Combine(root, path.TrimStart('/')));
     if (!filePath.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(filePath))
     {
@@ -281,6 +284,24 @@ static async Task HandleWebSocket(System.Net.WebSockets.WebSocket ws)
             using var doc = JsonDocument.Parse(text);
             var root = doc.RootElement;
             var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+            if (type == "open_dash")
+            {
+                var nav = JsonSerializer.Serialize(new { type = "navigate", url = "/dash" });
+                await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(nav)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                continue;
+            }
+            if (type == "open_serverlist")
+            {
+                var nav = JsonSerializer.Serialize(new { type = "navigate", url = "/serverlist" });
+                await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(nav)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                continue;
+            }
+            if (type == "open_game")
+            {
+                var nav = JsonSerializer.Serialize(new { type = "navigate", url = "/game" });
+                await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(nav)), System.Net.WebSockets.WebSocketMessageType.Text, true, CancellationToken.None);
+                continue;
+            }
             if (!string.IsNullOrWhiteSpace(type))
             {
                 var handler = HandlerFactory.Get(type);
