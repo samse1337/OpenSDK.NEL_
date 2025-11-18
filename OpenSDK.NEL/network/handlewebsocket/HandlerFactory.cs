@@ -17,7 +17,8 @@ internal static class HandlerFactory
         ["create_role_named"] = new CreateRoleNamedHandler(),
         ["start_proxy"] = new StartProxyHandler(),
         ["list_channels"] = new ListChannelsHandler(),
-        ["close_channel"] = new CloseChannelHandler()
+        ["close_channel"] = new ShutdownGameHandler(),
+        ["shutdown_game"] = new ShutdownGameHandler()
     };
 
     public static IWsHandler? Get(string type)

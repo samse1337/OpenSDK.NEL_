@@ -14,7 +14,8 @@ internal class ListChannelsHandler : IWsHandler
             playerId = ch.PlayerId,
             tcp = "127.0.0.1:" + ch.LocalPort,
             forward = ch.ForwardHost + ":" + ch.ForwardPort,
-            address = ch.Ip + ":" + ch.Port
+            address = ch.Ip + ":" + ch.Port,
+            identifier = ch.Identifier.ToString()
         }).ToArray();
         var msg = JsonSerializer.Serialize(new { type = "channels", items });
         await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);

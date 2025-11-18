@@ -14,4 +14,5 @@ internal class ChannelInfo
     public int ForwardPort { get; set; }
     public int LocalPort { get; set; }
     public dynamic? Connection { get; set; }
+    public System.Guid Identifier { get; set; }
 }

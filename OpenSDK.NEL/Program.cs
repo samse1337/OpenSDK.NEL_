@@ -176,6 +176,12 @@ static async Task HandleWebSocket(System.Net.WebSockets.WebSocket ws)
             using var doc = JsonDocument.Parse(text);
             var root = doc.RootElement;
             var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+            if (type == "shutdown_game")
+            {
+                var h = new OpenSDK.NEL.HandleWebSocket.ShutdownGameHandler();
+                await h.ProcessAsync(ws, root);
+                continue;
+            }
             if (type == "open_dash")
             {
                 var nav = JsonSerializer.Serialize(new { type = "navigate", url = "/dash" });

@@ -6,7 +6,7 @@ using OpenSDK.NEL;
 using Codexus.Cipher.Entities;
 using Codexus.Development.SDK.Entities;
 using Codexus.Cipher.Entities.WPFLauncher.NetGame;
-using Codexus.OpenSDK.Http;
+using System.Security.Cryptography;
 
 internal class CreateRoleRandomHandler : IWsHandler
 {
@@ -64,14 +64,15 @@ internal class CreateRoleRandomHandler : IWsHandler
         return roles.Data;
     }
 
-    private static async Task<string?> GetRandomNameAsync()
+    private static Task<string?> GetRandomNameAsync()
     {
-        var http = new HttpWrapper("https://wapi.wangyupu.com");
-        var resp = await http.GetAsync("/api/nng");
-        var text = await resp.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(text);
-        var root = doc.RootElement;
-        var name = root.TryGetProperty("name", out var n) ? n.GetString() : null;
-        return name;
+        const string letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const string digits = "0123456789";
+        var pool = letters + digits;
+        var bytes = new byte[12];
+        RandomNumberGenerator.Fill(bytes);
+        var chars = new char[12];
+        for (int i = 0; i < bytes.Length; i++) chars[i] = pool[bytes[i] % pool.Length];
+        return Task.FromResult<string?>(new string(chars));
     }
 }

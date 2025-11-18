@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using Serilog;
 using OpenSDK.NEL;
+using OpenSDK.NEL.Manager;
 using Codexus.Cipher.Entities;
 using Codexus.Development.SDK.Entities;
 using Codexus.Cipher.Entities.WPFLauncher.NetGame;
@@ -38,44 +39,15 @@ internal class StartProxyHandler : IWsHandler
         }
         try
         {
-            var roles = await GetServerRolesByIdAsync(auth, serverId);
-            var selected = roles.FirstOrDefault(r => r.GameId == roleId);
-            if (selected == null)
+            var gm = new GameManager();
+            var started = await gm.StartAsync(serverId!, serverName, roleId!);
+            if (!started)
             {
-                var err = JsonSerializer.Serialize(new { type = "start_error", message = "角色不存在" });
+                var err = JsonSerializer.Serialize(new { type = "start_error", message = "启动失败" });
                 await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(err)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
                 return;
             }
-            var address = await auth.Api<EntityAddressRequest, Codexus.Cipher.Entities.Entity<Codexus.Cipher.Entities.WPFLauncher.NetGame.EntityNetGameServerAddress>>(
-                "/item-address/get",
-                new EntityAddressRequest { ItemId = serverId });
-            var cts = new CancellationTokenSource();
-            AppState.Channels[serverId!] = new ChannelInfo
-            {
-                ServerId = serverId!,
-                ServerName = serverName,
-                Ip = address.Data!.Ip,
-                Port = address.Data!.Port,
-                RoleName = selected.Name,
-                Cts = cts,
-                PlayerId = auth.EntityId,
-                ForwardHost = address.Data!.Ip,
-                ForwardPort = address.Data!.Port,
-                LocalPort = address.Data!.Port
-            };
-            _ = Task.Run(async () =>
-            {
-                await StartProxyWithRoleByIdAsync(auth, AppState.Services!, serverId!, serverName, selected, cts.Token);
-            });
-            var items3 = AppState.Channels.Values.Select(ch => new {
-                serverId = ch.ServerId,
-                serverName = ch.ServerName,
-                playerId = ch.PlayerId,
-                tcp = "127.0.0.1:" + ch.LocalPort,
-                forward = ch.ForwardHost + ":" + ch.ForwardPort,
-                address = ch.Ip + ":" + ch.Port
-            }).ToArray();
-            var ok = JsonSerializer.Serialize(new { type = "channels", items = items3 });
+            var ok = JsonSerializer.Serialize(new { type = "channels_updated" });
             await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(ok)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
         }
         catch (System.Exception ex)
