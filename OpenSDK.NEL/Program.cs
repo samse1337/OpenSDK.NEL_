@@ -60,16 +60,27 @@ static async Task<string> ComputeCrcSalt()
 {
     Log.Information("正在计算 CRC Salt...");
 
+    var token = Environment.GetEnvironmentVariable("NEL_BEARER_TOKEN");
     var http = new HttpWrapper("https://service.codexus.today",
-        options => { options.WithBearerToken("0e9327a2-d0f8-41d5-8e23-233de1824b9a.pk_053ff2d53503434bb42fe158"); });
+        options => { if (!string.IsNullOrWhiteSpace(token)) options.WithBearerToken(token); });
 
     var response = await http.GetAsync("/crc-salt");
-
     var json = await response.Content.ReadAsStringAsync();
-    var entity = JsonSerializer.Deserialize<OpenSdkResponse<CrcSalt>>(json);
-
-    if (entity != null) return entity.Data.Salt;
-
+    try
+    {
+        var entity = JsonSerializer.Deserialize<OpenSdkResponse<CrcSalt>>(json);
+        if (entity != null && entity.Success && entity.Data != null) return entity.Data.Salt;
+    }
+    catch (JsonException ex)
+    {
+        var preview = json;
+        if (preview.Length > 200) preview = preview.Substring(0, 200);
+        Log.Error(ex, "CRC Salt响应不是有效JSON: {Content}", preview);
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "CRC Salt解析失败");
+    }
     Log.Error("无法计算出 CrcSalt");
     return string.Empty;
 }

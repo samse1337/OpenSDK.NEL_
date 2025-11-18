@@ -7,6 +7,7 @@ internal static class HandlerFactory
     {
         ["cookie_login"] = new CookieLoginHandler(),
         ["login_4399"] = new Login4399Handler(),
+        ["login_x19"] = new LoginX19Handler(),
         ["login_4399_with_captcha"] = new Login4399WithCaptchaHandler(),
         ["delete_account"] = new DeleteAccountHandler(),
         ["list_accounts"] = new ListAccountsHandler(),
