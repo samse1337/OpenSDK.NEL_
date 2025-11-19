@@ -25,6 +25,9 @@
         <Reference Include="Codexus.OpenSDK">
             <HintPath>..\SDK\Codexus.OpenSDK.dll</HintPath>
         </Reference>
+        <Reference Include="Downloader">
+            <HintPath>..\SDK\Downloader.dll</HintPath>
+        </Reference>
   </ItemGroup>
 
   <ItemGroup>
