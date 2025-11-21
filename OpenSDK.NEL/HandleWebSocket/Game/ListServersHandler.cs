@@ -1,18 +1,17 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
 using Serilog;
-using OpenSDK.NEL;
+using OpenSDK.NEL.type;
 using Codexus.Cipher.Entities.WPFLauncher.NetGame;
 using Codexus.Cipher.Entities;
 
-internal class SearchServersHandler : IWsHandler
+internal class ListServersHandler : IWsHandler
 {
-    public string Type => "search_servers";
+    public string Type => "list_servers";
     public async Task ProcessAsync(System.Net.WebSockets.WebSocket ws, JsonElement root)
     {
-        var keyword = root.TryGetProperty("keyword", out var k) ? k.GetString() : string.Empty;
         var sel = AppState.SelectedAccountId;
         if (string.IsNullOrEmpty(sel) || !AppState.Auths.TryGetValue(sel, out var auth))
         {
@@ -22,11 +21,21 @@ internal class SearchServersHandler : IWsHandler
         }
         try
         {
-            var servers = await auth.Api<EntityNetGameKeyword, Entities<EntityNetGameItem>>(
-                "/item/query/search-by-keyword",
-                new EntityNetGameKeyword { Keyword = keyword ?? string.Empty });
+            const int pageSize = 15;
+            var offset = 0;
+            var servers = await auth.Api<EntityNetGameRequest, Entities<EntityNetGameItem>>(
+                "/item/query/available",
+                new EntityNetGameRequest
+                {
+                    AvailableMcVersions = Array.Empty<string>(),
+                    ItemType = 1,
+                    Length = pageSize,
+                    Offset = offset,
+                    MasterTypeId = "2",
+                    SecondaryTypeId = ""
+                });
             
-            Log.Information("服务器搜索: 关键字={Keyword}, 数量={Count}", keyword, servers.Data?.Length ?? 0);
+            if(AppState.Debug) Log.Information("服务器列表: 数量={Count}", servers.Data?.Length ?? 0);
             var items = servers.Data.Select(s => new { entityId = s.EntityId, name = s.Name }).ToArray();
             var msg = JsonSerializer.Serialize(new { type = "servers", items });
             await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);

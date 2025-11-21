@@ -60,6 +60,10 @@
         </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="HandleWebSocket\Plugin\" />
+  </ItemGroup>
+
   <PropertyGroup>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>

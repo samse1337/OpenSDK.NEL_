@@ -1,4 +1,6 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
+
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
@@ -13,6 +15,7 @@ internal class ListChannelsHandler : IWsHandler
             serverId = ch.ServerId,
             serverName = ch.ServerName,
             playerId = ch.PlayerId,
+            roleName = ch.RoleName,
             tcp = "127.0.0.1:" + ch.LocalPort,
             forward = ch.ForwardHost + ":" + ch.ForwardPort,
             address = ch.Ip + ":" + ch.Port,

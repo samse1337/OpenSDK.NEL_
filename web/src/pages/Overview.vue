@@ -39,16 +39,21 @@
         <label>Cookie</label>
         <input v-model="cookieText" class="input" placeholder="填写Cookie" />
       </div>
-      <div class="form" v-else-if="newType === 'pc4399'">
-        <label>账号</label>
-        <input v-model="pc4399Account" class="input" placeholder="填写账号" />
-        <label>密码</label>
-        <input v-model="pc4399Password" type="password" class="input" placeholder="填写密码" />
-        <div class="free-row">
-          <button class="btn btn-primary" :disabled="freeBusy" @click="getFreeAccount">获取账号</button>
-          <div :class="['free-alert', freeLevel, { show: !!freeMessage }]">{{ freeMessage }}</div>
-        </div>
-      </div>
+  <div class="form" v-else-if="newType === 'pc4399'">
+    <label>账号</label>
+    <input v-model="pc4399Account" class="input" placeholder="填写账号" />
+    <label>密码</label>
+    <input v-model="pc4399Password" type="password" class="input" placeholder="填写密码" />
+    <div class="free-row">
+      <button class="btn btn-primary" :disabled="freeBusy" @click="getFreeAccount">获取账号</button>
+      <div :class="['free-alert', freeLevel, { show: !!freeMessage }]">{{ freeMessage }}</div>
+    </div>
+    <div class="form" v-if="pc4399CaptchaUrl">
+      <label>验证码</label>
+      <input v-model="pc4399Captcha" class="input" placeholder="填写验证码" />
+      <img :src="pc4399CaptchaUrl" alt="验证码" style="margin-top:8px;border:1px solid var(--color-border);border-radius:8px;max-width:100%" />
+    </div>
+  </div>
       <div class="form" v-else>
         <label>邮箱</label>
         <input v-model="neteaseEmail" class="input" placeholder="填写邮箱" />
@@ -74,6 +79,9 @@ const newType = ref('cookie')
 const cookieText = ref('')
 const pc4399Account = ref('')
 const pc4399Password = ref('')
+const pc4399Captcha = ref('')
+const pc4399CaptchaUrl = ref('')
+const pc4399SessionId = ref('')
 const neteaseEmail = ref('')
 const neteasePassword = ref('')
 const connected = ref(false)
@@ -95,21 +103,22 @@ function confirmAdd() {
     const v = cookieText.value && cookieText.value.trim()
     if (!v) return
     try { socket.send(JSON.stringify({ type: 'cookie_login', cookie: v })) } catch {}
-    cookieText.value = ''
   } else if (newType.value === 'pc4399') {
     const acc = pc4399Account.value && pc4399Account.value.trim()
     const pwd = pc4399Password.value && pc4399Password.value.trim()
     if (!acc || !pwd) return
-    try { socket.send(JSON.stringify({ type: 'login_4399', account: acc, password: pwd })) } catch {}
-    pc4399Account.value = ''
-    pc4399Password.value = ''
+    if (pc4399CaptchaUrl.value) {
+      const cap = pc4399Captcha.value && pc4399Captcha.value.trim()
+      if (!cap || !pc4399SessionId.value) return
+      try { socket.send(JSON.stringify({ type: 'login_4399', account: acc, password: pwd, sessionId: pc4399SessionId.value, captcha: cap })) } catch {}
+    } else {
+      try { socket.send(JSON.stringify({ type: 'login_4399', account: acc, password: pwd })) } catch {}
+    }
   } else {
     const email = neteaseEmail.value && neteaseEmail.value.trim()
     const pwd = neteasePassword.value && neteasePassword.value.trim()
     if (!email || !pwd) return
     try { socket.send(JSON.stringify({ type: 'login_x19', email, password: pwd })) } catch {}
-    neteaseEmail.value = ''
-    neteasePassword.value = ''
   }
   
 }
@@ -153,6 +162,17 @@ onMounted(() => {
           const exists = accounts.value.some(a => a.entityId === msg.entityId)
           if (!exists) accounts.value.push({ entityId: msg.entityId, channel: msg.channel })
           showAdd.value = false
+          cookieText.value = ''
+          pc4399Account.value = ''
+          pc4399Password.value = ''
+          pc4399Captcha.value = ''
+          pc4399CaptchaUrl.value = ''
+          pc4399SessionId.value = ''
+          neteaseEmail.value = ''
+          neteasePassword.value = ''
+          freeMessage.value = ''
+          freeLevel.value = ''
+          freeBusy.value = false
         }
       } else if (msg.type === 'get_free_account_status') {
         freeMessage.value = msg.message || '获取中...'
@@ -173,6 +193,10 @@ onMounted(() => {
       } else if (msg.type === 'connected') {
       } else if (msg.type === 'channels') {
       } else if (msg.type === 'captcha_required') {
+        pc4399Account.value = msg.account || pc4399Account.value || ''
+        pc4399Password.value = msg.password || pc4399Password.value || ''
+        pc4399CaptchaUrl.value = msg.captchaUrl || msg.captcha_url || ''
+        pc4399SessionId.value = msg.sessionId || msg.session_id || ''
       }
     }
   } catch {}

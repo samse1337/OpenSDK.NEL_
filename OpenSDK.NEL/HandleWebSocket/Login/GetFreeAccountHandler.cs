@@ -1,4 +1,4 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+namespace OpenSDK.NEL.HandleWebSocket.Login;
 
 using System;
 using System.Text;

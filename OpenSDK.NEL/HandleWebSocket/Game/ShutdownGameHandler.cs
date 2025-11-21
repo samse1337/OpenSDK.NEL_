@@ -1,4 +1,4 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System;
 using System.Text;
 using System.Text.Json;
@@ -19,10 +19,7 @@ internal class ShutdownGameHandler : IWsHandler
                 if (string.IsNullOrWhiteSpace(s)) continue;
                 if (Guid.TryParse(s, out var id))
                 {
-                    GameManager.Instance.ShutdownLauncher(id);
-                    GameManager.Instance.ShutdownPeInterceptor(id);
                     GameManager.Instance.ShutdownInterceptor(id);
-                    GameManager.Instance.ShutdownPeLauncher(id);
                     closed.Add(s);
                 }
             }

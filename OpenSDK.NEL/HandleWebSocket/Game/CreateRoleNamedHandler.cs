@@ -1,4 +1,6 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
+
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
@@ -30,11 +32,11 @@ internal class CreateRoleNamedHandler : IWsHandler
         }
         try
         {
-            Log.Information("创建角色请求: serverId={ServerId}, name={Name}, account={AccountId}", serverId, name, auth.EntityId);
+            if(AppState.Debug) Log.Information("创建角色请求: serverId={ServerId}, name={Name}, account={AccountId}", serverId, name, auth.EntityId);
             await CreateCharacterByIdAsync(auth, serverId, name);
-            Log.Information("角色创建成功: serverId={ServerId}, name={Name}", serverId, name);
+            if(AppState.Debug)Log.Information("角色创建成功: serverId={ServerId}, name={Name}", serverId, name);
             var roles = await GetServerRolesByIdAsync(auth, serverId);
-            Log.Information("角色列表返回: count={Count}, serverId={ServerId}", roles.Length, serverId);
+            if(AppState.Debug)Log.Information("角色列表返回: count={Count}, serverId={ServerId}", roles.Length, serverId);
             var items = roles.Select(r => new { id = r.Name, name = r.Name }).ToArray();
             var msg = JsonSerializer.Serialize(new { type = "server_roles", items, serverId, createdName = name });
             await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
@@ -49,7 +51,7 @@ internal class CreateRoleNamedHandler : IWsHandler
 
     private static async Task CreateCharacterByIdAsync(Codexus.OpenSDK.Entities.X19.X19AuthenticationOtp authOtp, string serverId, string name)
     {
-        await authOtp.Api<EntityCreateCharacter, System.Text.Json.JsonElement>(
+        await authOtp.Api<EntityCreateCharacter, JsonElement>(
             "/game-character",
             new EntityCreateCharacter
             {

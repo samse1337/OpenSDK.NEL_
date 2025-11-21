@@ -1,28 +1,21 @@
-﻿using System.Net;
-using System.Text;
-using System.Text.Json;
-using Codexus.Cipher.Protocol.Registers;
-using Codexus.Development.SDK.Entities;
 using Codexus.Development.SDK.Manager;
 using Codexus.Interceptors;
 using Codexus.OpenSDK;
 using Codexus.OpenSDK.Entities.Yggdrasil;
-using Codexus.OpenSDK.Http;
 using Codexus.OpenSDK.Yggdrasil;
 using OpenSDK.NEL;
-using OpenSDK.NEL.Entities;
+using OpenSDK.NEL.type;
 using Serilog;
-using OpenSDK.NEL.HandleWebSocket;
 using OpenSDK.NEL.Utils;
 
 ConfigureLogger();
 
+await new WebSocketServer().StartAsync();
 await InitializeSystemComponentsAsync();
-
 AppState.Services = await CreateServices();
 await AppState.Services.X19.InitializeDeviceAsync();
 
-await new WebSocketServer().StartAsync();
+
 await Task.Delay(Timeout.Infinite);
 
 static void ConfigureLogger()
@@ -56,7 +49,7 @@ static async Task<Services> CreateServices()
     {
         LauncherVersion = x19.GameVersion,
         Channel = "netease",
-        CrcSalt = await OpenSDK.NEL.Utils.CrcSalt.Compute()
+        CrcSalt = await CrcSalt.Compute()
     });
 
     return new Services(c4399, x19, yggdrasil);

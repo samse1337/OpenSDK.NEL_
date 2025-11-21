@@ -1,8 +1,4 @@
-using System;
-using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Codexus.Cipher.Entities;
 using Codexus.Cipher.Entities.WPFLauncher.NetGame;
 using Codexus.Cipher.Protocol;
@@ -11,27 +7,26 @@ using Codexus.Development.SDK.RakNet;
 using Codexus.Game.Launcher.Services.Java;
 using Codexus.Game.Launcher.Utils;
 using Codexus.OpenSDK;
-using Codexus.OpenSDK.Entities.X19;
-using Codexus.OpenSDK.Yggdrasil;
 using Codexus.Interceptors;
+using OpenSDK.NEL.type;
 using Serilog;
 
 namespace OpenSDK.NEL.Manager
 {
     internal class GameManager
     {
-        static readonly System.Collections.Generic.Dictionary<System.Guid, Codexus.Game.Launcher.Services.Java.LauncherService> Launchers = new();
-        static readonly System.Collections.Generic.Dictionary<System.Guid, Codexus.Game.Launcher.Services.Bedrock.LauncherService> PeLaunchers = new();
-        static readonly System.Collections.Generic.Dictionary<System.Guid, Interceptor> Interceptors = new();
-        static readonly System.Collections.Generic.Dictionary<System.Guid, IRakNet> PeInterceptors = new();
-        static readonly object _lock = new object();
+        static readonly Dictionary<Guid, Codexus.Game.Launcher.Services.Java.LauncherService> Launchers = new();
+        static readonly Dictionary<Guid, Codexus.Game.Launcher.Services.Bedrock.LauncherService> PeLaunchers = new();
+        static readonly Dictionary<Guid, Interceptor> Interceptors = new();
+        static readonly Dictionary<Guid, IRakNet> PeInterceptors = new();
+        static readonly object Lock = new object();
         public static GameManager Instance { get; } = new GameManager();
 
-        public sealed class LockScope : System.IDisposable
+        public sealed class LockScope : IDisposable
         {
             readonly object l;
-            public LockScope(object o){l=o; System.Threading.Monitor.Enter(l);} 
-            public void Dispose(){ System.Threading.Monitor.Exit(l);} 
+            public LockScope(object o){l=o; Monitor.Enter(l);} 
+            public void Dispose(){ Monitor.Exit(l);} 
         }
         public static LockScope EnterScope(object o)=>new LockScope(o);
 
@@ -68,7 +63,7 @@ namespace OpenSDK.NEL.Manager
             var mods = JsonSerializer.Serialize(serverModInfo);
 
             var cts = new CancellationTokenSource();
-            var connection = Codexus.Interceptors.Interceptor.CreateInterceptor(
+            var connection = Interceptor.CreateInterceptor(
                 new EntitySocks5 { Enabled = false },
                 mods,
                 serverId,
@@ -111,8 +106,8 @@ namespace OpenSDK.NEL.Manager
                 })
             );
 
-            var identifier = System.Guid.NewGuid();
-            using (EnterScope(_lock))
+            var identifier = Guid.NewGuid();
+            using (EnterScope(Lock))
             {
                 Interceptors[identifier] = connection;
             }
@@ -136,59 +131,21 @@ namespace OpenSDK.NEL.Manager
             return true;
         }
 
-        public bool Close(string serverId)
+        public void ShutdownInterceptor(Guid identifier)
         {
-            if (!AppState.Channels.TryRemove(serverId, out var ch)) return false;
-            try { ch.Cts.Cancel(); } catch { }
-            try { ch.Connection?.Shutdown(); } catch { }
-            return true;
-        }
-
-        public void ShutdownPeLauncher(System.Guid identifier)
-        {
-            using (EnterScope(_lock))
+            Interceptor value = null;
+            var has = false;
+            using (EnterScope(Lock))
             {
-                if (PeLaunchers.TryGetValue(identifier, out var value))
+                if (Interceptors.TryGetValue(identifier, out value))
                 {
-                    value.ShutdownAsync();
-                    PeLaunchers.Remove(identifier);
-                }
-            }
-        }
-
-        public void ShutdownLauncher(System.Guid identifier)
-        {
-            using (EnterScope(_lock))
-            {
-                if (Launchers.TryGetValue(identifier, out var value))
-                {
-                    value.ShutdownAsync();
-                    Launchers.Remove(identifier);
-                }
-            }
-        }
-
-        public void ShutdownInterceptor(System.Guid identifier)
-        {
-            using (EnterScope(_lock))
-            {
-                if (Interceptors.TryGetValue(identifier, out var value))
-                {
-                    value.ShutdownAsync();
                     Interceptors.Remove(identifier);
+                    has = true;
                 }
             }
-        }
-
-        public void ShutdownPeInterceptor(System.Guid identifier)
-        {
-            using (EnterScope(_lock))
+            if (has)
             {
-                if (PeInterceptors.TryGetValue(identifier, out var value))
-                {
-                    value.Shutdown();
-                    PeInterceptors.Remove(identifier);
-                }
+                value.ShutdownAsync();
             }
         }
     }

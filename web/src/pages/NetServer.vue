@@ -136,6 +136,7 @@ onMounted(() => {
     socket = new WebSocket(appConfig.getWsUrl())
     socket.onopen = () => {
       connected.value = true
+      try { socket.send(JSON.stringify({ type: 'list_accounts' })) } catch {}
       try { socket.send(JSON.stringify({ type: 'list_servers' })) } catch {}
     }
     socket.onmessage = (e) => {

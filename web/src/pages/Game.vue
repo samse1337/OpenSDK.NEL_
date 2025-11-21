@@ -3,17 +3,29 @@
     <div class="header">
       <div class="title">游戏</div>
     </div>
-    <div v-if="channels.length === 0" class="empty-top">暂无通道</div>
-    <div class="list">
-      <div v-for="ch in channels" :key="ch.identifier" class="row">
+    <div v-if="sessions.length > 0" class="list">
+      <div v-for="s in sessions" :key="s.id" class="row">
         <div class="info">
-          <div class="server">{{ ch.serverName }}</div>
-          <div class="player">{{ ch.playerId }}</div>
-          <div class="ip">{{ ch.tcp }}</div>
+          <div class="server">{{ s.serverName }}</div>
+          <div class="player">{{ s.characterName }} · {{ s.type }}</div>
+          <div class="ip">{{ s.statusText }} · 进度 {{ s.progressValue }}%</div>
         </div>
         <div class="actions">
-          <button class="btn" @click="copyIp(ch.tcp)">复制IP</button>
-          <button class="btn danger" @click="shutdown(ch.identifier)">关闭通道</button>
+          <button class="btn" @click="copyIp(s.localAddress)">复制地址</button>
+        </div>
+      </div>
+    </div>
+    <div v-if="sessions.length === 0" class="empty-top">暂无会话</div>
+    <div class="list" v-else>
+      <div v-for="s in sessions" :key="s.id" class="row">
+        <div class="info">
+          <div class="server">{{ s.serverName }}</div>
+          <div class="player">{{ s.characterName }} · {{ s.type }}</div>
+          <div class="ip">{{ s.statusText }} · 进度 {{ s.progressValue }}%</div>
+        </div>
+        <div class="actions">
+          <button class="btn" @click="copyIp(s.localAddress)">复制地址</button>
+          <button class="btn danger" @click="shutdown(s.identifier)">关闭通道</button>
         </div>
       </div>
     </div>
@@ -23,11 +35,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import appConfig from '../config/app.js'
-const channels = ref([])
+const sessions = ref([])
 let socket
-function requestChannels() {
+function requestSessions() {
   if (!socket || socket.readyState !== 1) return
-  try { socket.send(JSON.stringify({ type: 'list_channels' })) } catch {}
+  try { socket.send(JSON.stringify({ type: 'query_game_session' })) } catch {}
 }
 function copyIp(text) {
   if (!text) return
@@ -42,20 +54,24 @@ function shutdown(identifier) {
 onMounted(() => {
   try {
     socket = new WebSocket(appConfig.getWsUrl())
-    socket.onopen = () => { requestChannels() }
+    socket.onopen = () => { requestSessions() }
     socket.onmessage = (e) => {
       let msg
       try { msg = JSON.parse(e.data) } catch { msg = null }
       if (!msg || !msg.type) return
-      if (msg.type === 'channels' && Array.isArray(msg.items)) {
-        channels.value = (msg.items || []).map(it => ({
-          serverName: it.serverName,
-          playerId: it.playerId,
-          tcp: it.tcp,
-          identifier: it.identifier
+      if (msg.type === 'query_game_session' && Array.isArray(msg.items)) {
+        sessions.value = (msg.items || []).map(it => ({
+          id: it.Id || it.id,
+          serverName: it.ServerName || it.serverName,
+          characterName: it.CharacterName || it.characterName,
+          type: it.Type || it.type,
+          statusText: it.StatusText || it.statusText,
+          progressValue: typeof it.ProgressValue === 'number' ? it.ProgressValue : (parseInt(it.progressValue) || 0),
+          localAddress: it.LocalAddress || it.localAddress,
+          identifier: it.Identifier || it.identifier
         }))
       } else if (msg.type === 'channels_updated' || msg.type === 'shutdown_ack') {
-        requestChannels()
+        requestSessions()
       }
     }
   } catch {}

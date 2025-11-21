@@ -1,4 +1,6 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
+
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;

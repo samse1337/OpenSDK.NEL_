@@ -1,22 +1,11 @@
-using Codexus.Cipher.Protocol;
-using Codexus.OpenSDK;
-using System.IO;
+using OpenSDK.NEL.type;
 
-namespace OpenSDK.NEL.HandleWebSocket;
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
-using System.Threading;
 using Serilog;
-using OpenSDK.NEL;
 using OpenSDK.NEL.Manager;
-using Codexus.Cipher.Entities;
-using Codexus.Development.SDK.Entities;
-using Codexus.Cipher.Entities.WPFLauncher.NetGame;
-using Codexus.Game.Launcher.Services.Java;
-using Codexus.Game.Launcher.Utils;
-using Codexus.OpenSDK.Entities.X19;
-using Codexus.OpenSDK.Yggdrasil;
 
 internal class StartProxyHandler : IWsHandler
 {
@@ -52,7 +41,7 @@ internal class StartProxyHandler : IWsHandler
             var ok = JsonSerializer.Serialize(new { type = "channels_updated" });
             await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(ok)), System.Net.WebSockets.WebSocketMessageType.Text, true, System.Threading.CancellationToken.None);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             Log.Error(ex, "启动代理失败");
             var err = JsonSerializer.Serialize(new { type = "start_error", message = "启动失败" });

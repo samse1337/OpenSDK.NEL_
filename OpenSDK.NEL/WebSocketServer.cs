@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
 using OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
 
 namespace OpenSDK.NEL;
 
@@ -20,7 +21,9 @@ internal class WebSocketServer
         var listener = new HttpListener();
         listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         listener.Prefixes.Add($"http://localhost:{port}/");
+        Log.Information("-> 访问: http://127.0.0.1:{Port}/ 使用OpenSDK.NEL", port);
         listener.Start();
+        
         _ = Task.Run(async () =>
         {
             while (true)
@@ -39,8 +42,6 @@ internal class WebSocketServer
                 });
             }
         });
-        Log.Information("WebUI已启动: http://127.0.0.1:{Port}/", port);
-        Log.Information("WS已启动服务器: ws://127.0.0.1:{Port}/ws", port);
     }
 
     int GetPort()
@@ -102,20 +103,7 @@ internal class WebSocketServer
             Log.Information("WS Send: {Text}", connectedMsg);
         }
         await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(connectedMsg)), WebSocketMessageType.Text, true, CancellationToken.None);
-        var accountsItems = AppState.Accounts.Select(kv => new { entityId = kv.Key, channel = kv.Value }).ToArray();
-        var initMsg = JsonSerializer.Serialize(new { type = "accounts", items = accountsItems });
-        if (AppState.Debug)
-        {
-            Log.Information("WS Send: {Text}", initMsg);
-        }
-        await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(initMsg)), WebSocketMessageType.Text, true, CancellationToken.None);
-        var channelItems = AppState.Channels.Values.Select(ch => new { serverId = ch.ServerId, serverName = ch.ServerName, address = ch.Ip + ":" + ch.Port }).ToArray();
-        var chMsg = JsonSerializer.Serialize(new { type = "channels", items = channelItems });
-        if (AppState.Debug)
-        {
-            Log.Information("WS Send: {Text}", chMsg);
-        }
-        await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(chMsg)), WebSocketMessageType.Text, true, CancellationToken.None);
+        
         while (ws.State == WebSocketState.Open)
         {
             var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);

@@ -1,4 +1,6 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
+
+namespace OpenSDK.NEL.HandleWebSocket.Login;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
@@ -22,6 +24,7 @@ internal class DeleteAccountHandler : IWsHandler
             if(AppState.Debug)Log.Information("已删除账号: {Id}", id);
             
             if (AppState.SelectedAccountId == id) AppState.SelectedAccountId = null;
+            AppState.Auths.TryRemove(id, out _);
         }
         else
         {

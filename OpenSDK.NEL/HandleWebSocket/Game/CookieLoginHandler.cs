@@ -1,10 +1,10 @@
-namespace OpenSDK.NEL.HandleWebSocket;
+using OpenSDK.NEL.type;
+
+namespace OpenSDK.NEL.HandleWebSocket.Game;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Text;
 using Serilog;
-using Codexus.OpenSDK.Entities.X19;
-using OpenSDK.NEL;
 
 internal class CookieLoginHandler : IWsHandler
 {
