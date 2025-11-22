@@ -82,6 +82,8 @@ const pc4399Password = ref('')
 const pc4399Captcha = ref('')
 const pc4399CaptchaUrl = ref('')
 const pc4399SessionId = ref('')
+const pc4399IdCard = ref('')
+const pc4399RealName = ref('')
 const neteaseEmail = ref('')
 const neteasePassword = ref('')
 const connected = ref(false)
@@ -95,7 +97,23 @@ function getFreeAccount() {
   freeBusy.value = true
   freeMessage.value = ''
   freeLevel.value = ''
-  try { socket.send(JSON.stringify({ type: 'get_free_account' })) } catch {}
+  try {
+    if (pc4399CaptchaUrl.value && pc4399SessionId.value) {
+      const cap = pc4399Captcha.value && pc4399Captcha.value.trim()
+      if (!cap) { freeBusy.value = false; return }
+      socket.send(JSON.stringify({
+        type: 'get_free_account',
+        username: pc4399Account.value,
+        password: pc4399Password.value,
+        idcard: pc4399IdCard.value,
+        realname: pc4399RealName.value,
+        captchaId: pc4399SessionId.value,
+        captcha: cap
+      }))
+    } else {
+      socket.send(JSON.stringify({ type: 'get_free_account' }))
+    }
+  } catch {}
 }
 function confirmAdd() {
   if (!socket || socket.readyState !== 1) return
@@ -181,7 +199,7 @@ onMounted(() => {
       } else if (msg.type === 'get_free_account_result') {
         freeBusy.value = false
         if (msg.success) {
-          pc4399Account.value = msg.account || ''
+          pc4399Account.value = msg.username || msg.account || ''
           pc4399Password.value = msg.password || ''
           freeMessage.value = '获取成功！已自动填充。'
           freeLevel.value = 'ok'
@@ -189,6 +207,13 @@ onMounted(() => {
           freeMessage.value = msg.message || '获取失败'
           freeLevel.value = 'error'
         }
+      } else if (msg.type === 'get_free_account_requires_captcha') {
+        pc4399Account.value = msg.username || pc4399Account.value || ''
+        pc4399Password.value = msg.password || pc4399Password.value || ''
+        pc4399CaptchaUrl.value = msg.captchaImageUrl || ''
+        pc4399SessionId.value = msg.captchaId || ''
+        pc4399IdCard.value = msg.idcard || ''
+        pc4399RealName.value = msg.realname || ''
       } else if (msg.type === 'login_error') {
       } else if (msg.type === 'connected') {
       } else if (msg.type === 'channels') {

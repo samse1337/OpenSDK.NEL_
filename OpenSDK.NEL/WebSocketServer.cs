@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
@@ -23,6 +24,19 @@ internal class WebSocketServer
         listener.Prefixes.Add($"http://localhost:{port}/");
         Log.Information("-> 访问: http://127.0.0.1:{Port}/ 使用OpenSDK.NEL", port);
         listener.Start();
+        var url = $"http://127.0.0.1:{port}/";
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "浏览器打开失败");
+        }
         
         _ = Task.Run(async () =>
         {
